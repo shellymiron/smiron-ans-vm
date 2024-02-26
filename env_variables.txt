@@ -1,0 +1,4 @@
+VSPHERE_SERVER=<vcenter-server-hostname>
+VSPHERE_USERNAME=<vcenter-username>
+VSPHERE_PASSWORD=<vcenter-password>
+PLAYBOOK_FILE=<playbook-to-run>

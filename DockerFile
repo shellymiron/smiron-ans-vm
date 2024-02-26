@@ -1,32 +1,28 @@
-# Use a base image with the necessary tools
-FROM ubuntu:latest
+FROM debian:latest
 
-# Install required packages (TwingGate, PowerShell, etc.)
-RUN apt-get update && \
-    apt-get install -y wget unzip powershell
+# Copy the script for installing dependencies
+COPY requirements.sh /tmp/
 
-# Download and install TwingGate
-RUN wget -O /tmp/twingate_installer.sh https://api.twingate.com/download/linux && \
-    chmod +x /tmp/twingate_installer.sh
+# Set executable permissions for the script and run it with debugging
+RUN chmod +x /tmp/requirements.sh && /bin/bash -x /tmp/requirements.sh
 
-# Set environment variables for TwingGate (replace with your actual values)
-ENV TWINGATE_USERNAME=user
-ENV TWINGATE_PASSWORD=password
-ENV TWINGATE_VCENTER_URL=https://vcenter-url
+# Set environment variables
+ARG VSPHERE_USERNAME
+ARG VSPHERE_PASSWORD
+ARG VSPHERE_SERVER
+ARG PLAYBOOK_FILE
+ENV VSPHERE_USERNAME=$VSPHERE_USERNAME \
+    VSPHERE_PASSWORD=$VSPHERE_PASSWORD \
+    VSPHERE_SERVER=$VSPHERE_SERVER \
+    PATH="/venv/bin:$PATH"
 
-# Login to vSphere using PowerShell
-RUN pwsh -Command "Connect-VIServer -Server vcenter-server -User username -Password password"
+# Clone the Git repository
+RUN git clone https://github.com/shellymiron/smiron-ans-vm /ansible
 
-# Provision a VM (replace with your actual provisioning commands)
-RUN pwsh -Command "New-VM -Name MyVM -MemoryGB 4 -NumCpu 2 -GuestID rhel7_64Guest"
+# Set working directory and create ansible.cfg
+WORKDIR /ansible
+RUN echo "[defaults]\nansible_python_interpreter=/venv/bin/python3" > ansible.cfg
 
-# Remove the VM (replace with your actual removal commands)
-RUN pwsh -Command "Remove-VM -VM MyVM -Confirm:$false"
-
-# Cleanup and exit
-RUN pwsh -Command "Disconnect-VIServer -Server * -Confirm:$false" && \
-    rm -rf /tmp/*
-
-# Entry point
-CMD ["/bin/bash"]
+# Run Ansible playbook
+CMD ansible-playbook -e ansible_python_interpreter=/venv/bin/python3 $PLAYBOOK_FILE
 
